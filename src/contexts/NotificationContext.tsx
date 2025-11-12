@@ -2,9 +2,10 @@
 
 import React, { createContext, useState, useEffect, useCallback, useRef } from 'react';
 import { AppNotification, UserRole } from '../types.ts';
-import { getNotifications } from '../services/api.ts';
+import { getNotifications, STORAGE_KEYS } from '../services/api.ts';
 import { useAuth } from '../hooks/useAuth.ts';
 import { AMARANTH_JOKERS_TEAM_ID } from '../constants.ts';
+import { useSyncedData } from '../hooks/useSyncedData.ts';
 
 interface NotificationContextType {
   notifications: AppNotification[];
@@ -17,79 +18,45 @@ interface NotificationContextType {
 export const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { data: allNotifications, loading } = useSyncedData<AppNotification[]>(getNotifications, [STORAGE_KEYS.NOTIFICATIONS]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
   const { user } = useAuth();
-  const pollIntervalRef = useRef<number | null>(null);
 
-  // Load user's read status from localStorage
   useEffect(() => {
     if (user) {
         const storedReadIds = localStorage.getItem(`sims_read_notifs_${user.id}`);
-        if (storedReadIds) {
-            setReadIds(new Set(JSON.parse(storedReadIds)));
-        } else {
-            setReadIds(new Set());
-        }
+        setReadIds(new Set(storedReadIds ? JSON.parse(storedReadIds) : []));
     } else {
         setReadIds(new Set());
     }
   }, [user]);
 
-  const fetchNotifications = useCallback(async () => {
-    try {
-      const data = await getNotifications();
-      if (user) {
-        const isPrivileged = user.role === UserRole.ADMIN || user.role === UserRole.OFFICER || user.teamId === AMARANTH_JOKERS_TEAM_ID;
-        
-        const filtered = data.filter((n: AppNotification) => {
-            if (isPrivileged) {
-                // Privileged users see everything except notifications for other specific users
-                if (n.target?.userId && n.target.userId !== user.id) {
-                    return false;
-                }
-                return true;
-            }
-            
-            if (!n.target) return true; // Public notification
-
-            if (n.target.userId && n.target.userId === user.id) return true;
-            
-            if (n.target.roles && n.target.roles.includes(user.role)) {
-                // Role- and team-specific (e.g., team lead of a specific team)
-                if (n.target.teamId) {
-                    return n.target.teamId === user.teamId;
-                }
-                return true; // Just role-specific
-            }
-            
-            return false;
-        });
-        setNotifications(filtered);
-      } else {
-        // Not logged in, show only public notifications
-        const publicNotifs = data.filter((n: AppNotification) => !n.target);
-        setNotifications(publicNotifs);
-      }
-    } catch (error) {
-      console.error("Failed to load notifications", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
   useEffect(() => {
-    fetchNotifications();
-    // Poll for new notifications every 5 seconds
-    pollIntervalRef.current = window.setInterval(fetchNotifications, 5000);
+    if (!allNotifications) return;
 
-    return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
-    };
-  }, [fetchNotifications]);
+    if (user) {
+      const isPrivileged = user.role === UserRole.ADMIN || user.role === UserRole.OFFICER || user.teamId === AMARANTH_JOKERS_TEAM_ID;
+      
+      const filtered = allNotifications.filter((n: AppNotification) => {
+          if (isPrivileged) {
+              if (n.target?.userId && n.target.userId !== user.id) return false;
+              return true;
+          }
+          if (!n.target) return true; // Public
+          if (n.target.userId && n.target.userId === user.id) return true;
+          if (n.target.roles && n.target.roles.includes(user.role)) {
+              if (n.target.teamId) return n.target.teamId === user.teamId;
+              return true;
+          }
+          return false;
+      });
+      setNotifications(filtered);
+    } else {
+      setNotifications(allNotifications.filter((n: AppNotification) => !n.target));
+    }
+  }, [allNotifications, user]);
+
 
   const markAsRead = (id: string) => {
     setReadIds(prev => {

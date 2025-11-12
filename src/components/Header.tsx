@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useTheme } from '../hooks/useTheme.ts';

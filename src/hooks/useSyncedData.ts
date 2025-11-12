@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 
 const STORAGE_EVENT_KEY = 'storage-update';

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Card from '../components/Card.tsx';
 import LeaderboardBarChart from '../components/LeaderboardBarChart.tsx';

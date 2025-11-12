@@ -208,30 +208,42 @@ const Reports: React.FC = () => {
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Problem Type</label>
                                 <select 
-                                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg"
+                                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
                                     value={reportForm.problemType}
-                                    onChange={(e) => setReportForm({...reportForm, problemType: e.target.value})}
+                                    onChange={(e) => setReportForm({ ...reportForm, problemType: e.target.value })}
                                     required
                                 >
                                     <option value="">Select type...</option>
-                                    <option value="Unsportsmanlike Behavior">Unsportsmanlike Behavior</option>
-                                    <option value="Spying / Eavesdropping">Spying / Eavesdropping</option>
-                                    <option value="Technical Issue">Technical Issue</option>
-                                    <option value="Other">Other</option>
+                                    <option value="spy">Spying / Eavesdropping</option>
+                                    <option value="unsportsmanlike">Unsportsmanlike Behavior</option>
+                                    <option value="other">Other</option>
                                 </select>
                             </div>
                         )}
                         
-                        {(reportType === 'report' && ['Unsportsmanlike Behavior', 'Spying / Eavesdropping'].includes(reportForm.problemType)) && (
-                            <div className="grid grid-cols-2 gap-4">
-                                <Input label="Offender Name (if known)" id="offenderName" value={reportForm.offenderName} onChange={(e) => setReportForm({...reportForm, offenderName: e.target.value})} />
-                                <Input label="Offender Team (if known)" id="offenderTeam" value={reportForm.offenderTeam} onChange={(e) => setReportForm({...reportForm, offenderTeam: e.target.value})} />
+                        {reportType === 'report' && reportForm.problemType && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <Input label="Offender Name (if known)" id="offenderName" value={reportForm.offenderName} onChange={(e) => setReportForm({ ...reportForm, offenderName: e.target.value })} />
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Offender Team (if known)</label>
+                                    <select
+                                        className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
+                                        value={reportForm.offenderTeam}
+                                        onChange={(e) => setReportForm({ ...reportForm, offenderTeam: e.target.value })}
+                                    >
+                                        <option value="">Select team...</option>
+                                        {teams.map(team => <option key={team.id} value={team.name}>{team.name}</option>)}
+                                    </select>
+                                </div>
                             </div>
                         )}
-                        
+
                         <div>
                             <label htmlFor="description" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
-                            <textarea id="description" rows={4} className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg"
+                            <textarea 
+                                id="description" 
+                                rows={4} 
+                                className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all duration-150"
                                 value={reportForm.description}
                                 onChange={(e) => setReportForm({...reportForm, description: e.target.value})}
                                 required
