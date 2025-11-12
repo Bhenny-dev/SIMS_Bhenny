@@ -5,10 +5,8 @@ import { useNotification } from '../hooks/useNotification.ts';
 import { useNavigate } from 'react-router-dom';
 import { getEvents, getLeaderboard, getUsers, STORAGE_KEYS } from '../services/api.ts';
 import { Team, Event, User } from '../types.ts';
-import { motion } from 'framer-motion';
-import { getTeamStyles } from '../config.ts';
-import { useVisibility } from '../hooks/useVisibility.ts';
 import { useSyncedData } from '../hooks/useSyncedData.ts';
+import { motion } from 'framer-motion';
 
 const HamburgerIcon: React.FC<{ isOpen: boolean }> = ({ isOpen }) => (
     <svg
@@ -26,12 +24,11 @@ const HamburgerIcon: React.FC<{ isOpen: boolean }> = ({ isOpen }) => (
 );
 
 
-const Header: React.FC<{ onToggleSidebar: () => void; sidebarOpen: boolean; }> = ({ onToggleSidebar, sidebarOpen }) => {
+const Header: React.FC<{ onToggleSidebar: () => void, sidebarOpen: boolean }> = ({ onToggleSidebar, sidebarOpen }) => {
   const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotification();
   const navigate = useNavigate();
-  const { settings, isPrivileged } = useVisibility();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<{ teams: Team[], events: Event[], users: User[] }>({ teams: [], events: [], users: [] });
@@ -39,9 +36,11 @@ const Header: React.FC<{ onToggleSidebar: () => void; sidebarOpen: boolean; }> =
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAllNotifications, setShowAllNotifications] = useState(false);
 
-  const { data: teams } = useSyncedData<Team[]>(getLeaderboard, [STORAGE_KEYS.TEAMS, STORAGE_KEYS.USERS]);
-  const { data: events } = useSyncedData<Event[]>(getEvents, [STORAGE_KEYS.EVENTS]);
-  const { data: allUsers } = useSyncedData<User[]>(getUsers, [STORAGE_KEYS.USERS]);
+  const { data: teams, isSynced: teamsSynced } = useSyncedData<Team[]>(getLeaderboard, [STORAGE_KEYS.TEAMS, STORAGE_KEYS.USERS]);
+  const { data: events, isSynced: eventsSynced } = useSyncedData<Event[]>(getEvents, [STORAGE_KEYS.EVENTS]);
+  const { data: allUsers, isSynced: usersSynced } = useSyncedData<User[]>(getUsers, [STORAGE_KEYS.USERS]);
+  
+  const isLive = teamsSynced || eventsSynced || usersSynced;
 
   const searchRefDesktop = useRef<HTMLDivElement>(null);
   const searchRefMobile = useRef<HTMLDivElement>(null);
@@ -75,7 +74,7 @@ const Header: React.FC<{ onToggleSidebar: () => void; sidebarOpen: boolean; }> =
       const matchedTeams = teams.filter(t => t.name.toLowerCase().includes(lowerQuery));
       const matchedEvents = events.filter(e => e.name.toLowerCase().includes(lowerQuery));
       const matchedUsers = allUsers.filter(u => 
-        u.name.toLowerCase().includes(lowerQuery) ||
+        (u.name && u.name.toLowerCase().includes(lowerQuery)) ||
         (u.firstName && u.firstName.toLowerCase().includes(lowerQuery)) ||
         (u.lastName && u.lastName.toLowerCase().includes(lowerQuery)) ||
         (u.studentId && u.studentId.toLowerCase().includes(lowerQuery))
@@ -115,18 +114,12 @@ const Header: React.FC<{ onToggleSidebar: () => void; sidebarOpen: boolean; }> =
                 <div className="p-2">
                     <h6 className="text-xs font-bold text-slate-500 dark:text-slate-400 px-2 mb-1">TEAMS</h6>
                     <ul>
-                        {searchResults.teams.slice(0, 3).map(team => {
-                            const style = getTeamStyles(team.id);
-                            return (
-                                <li key={team.id} onClick={() => handleSearchResultClick('team', team.id)} className="px-2 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg cursor-pointer transition-colors text-sm text-slate-700 dark:text-slate-200 flex justify-between items-center">
-                                    <div className="flex items-center gap-2">
-                                        <i className={`${style.icon} text-base`} style={{ color: style.gradient.from }}></i>
-                                        <span>{team.name}</span>
-                                    </div>
-                                    {(isPrivileged || settings.competitionScores) && <span className="text-xs text-slate-500">Rank #{team.rank}</span>}
-                                </li>
-                            );
-                        })}
+                        {searchResults.teams.slice(0, 3).map(team => (
+                            <li key={team.id} onClick={() => handleSearchResultClick('team', team.id)} className="px-2 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg cursor-pointer transition-colors text-sm text-slate-700 dark:text-slate-200 flex justify-between">
+                                <span>{team.name}</span>
+                                <span className="text-xs text-slate-500">Rank #{team.rank}</span>
+                            </li>
+                        ))}
                     </ul>
                 </div>
             )}
@@ -164,6 +157,7 @@ const Header: React.FC<{ onToggleSidebar: () => void; sidebarOpen: boolean; }> =
 
   const visibleNotifications = showAllNotifications ? notifications : notifications.slice(0, 20);
 
+
   return (
     <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm shadow-soft dark:shadow-soft-dark z-30 p-4 relative flex-shrink-0">
       <div className="flex items-center justify-between">
@@ -181,6 +175,11 @@ const Header: React.FC<{ onToggleSidebar: () => void; sidebarOpen: boolean; }> =
             <h5 className="font-bold text-lg text-slate-800 dark:text-slate-50 mb-0">Welcome back, {user?.firstName || user?.name}! 👋</h5>
             <small className="text-slate-500 dark:text-slate-400">Here's a look at the current standings.</small>
           </div>
+        </div>
+
+        <div className={`hidden lg:flex items-center space-x-2 px-3 py-1.5 rounded-full text-sm transition-all duration-300 ${isLive ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 shadow-md shadow-green-500/20' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>
+            <span className={`h-2.5 w-2.5 rounded-full transition-colors ${isLive ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`}></span>
+            <span className="font-semibold">{isLive ? 'Live Sync' : 'Real-time'}</span>
         </div>
 
         <div className="flex items-center gap-3">
